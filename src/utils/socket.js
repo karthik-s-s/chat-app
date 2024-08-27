@@ -1,4 +1,5 @@
 const { Server } = require('socket.io');
+const Message = require('../models/messageModel'); // Import your Message model
 
 let io;
 
@@ -16,8 +17,26 @@ exports.initSocket = (server) => {
             socket.join(room);
         });
 
-        socket.on('message', (message) => {
-            io.to(message.room).emit('message', message);
+        socket.on('message', async (message) => {
+            try {
+                // Save message to database
+                await Message.create({
+                    senderId: message.senderId,
+                    receiverId: message.receiverId || null,
+                    groupId: message.room || null,
+                    content: message.content,
+                });
+
+                if (message.room) {
+                    // Group message
+                    io.to(message.room).emit('message', message);
+                } else if (message.receiverId) {
+                    // Direct message
+                    io.to(message.receiverId).emit('message', message);
+                }
+            } catch (error) {
+                console.error('Error saving message:', error);
+            }
         });
 
         socket.on('disconnect', () => {
