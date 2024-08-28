@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  mysqldb:
+    image: mysql:5.7
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: chat
+    ports:
+      - 3307:3306
+    volumes:
+      - db:/var/lib/mysql
+    networks:
+      - auth-networks
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$password"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 5s
+
+  server:
+    build:
+      context: .  # Ensure this is the directory containing your Dockerfile
+    depends_on:
+      mysqldb:
+        condition: service_healthy
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      JWT_SECRET: your_jwt_secret
+      DB_NAME: chat
+      DB_USER: root
+      DB_PASSWORD: password
+      DB_HOST: mysqldb
+      DB_PORT: 3306
+    ports:
+      - 3000:3000
+    networks:
+      - auth-networks
+    stdin_open: true
+    tty: true
+
+networks:
+  auth-networks:
+    driver: bridge
+
+volumes:
+  db:
